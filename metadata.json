@@ -1,0 +1,8 @@
+{
+  "name": "omsconsults",
+  "description": "Comprehensive engineering consulting website and dynamic Node.js content management system for omsconsults.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
