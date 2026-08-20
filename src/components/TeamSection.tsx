@@ -119,10 +119,27 @@ export const TeamSection: React.FC<TeamSectionProps> = ({
               <div>
                 {/* Header Icon / Avatar Container */}
                 <div className="flex items-center gap-4 mb-6">
-                  <div className="w-14 h-14 bg-slate-50 border border-slate-200 flex items-center justify-center group-hover:bg-sky-700 group-hover:text-white transition-colors duration-200 shrink-0 rounded-none">
-                    <div className="group-hover:text-white transition-colors">
-                      {getMemberIcon(member.icon)}
-                    </div>
+                  <div className="w-14 h-14 bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden group-hover:border-sky-700 transition-colors duration-200 shrink-0 rounded-none">
+                    {member.photo ? (
+                      <img
+                        src={member.photo}
+                        alt={member.name}
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          // Fallback to icon on error
+                          (e.target as HTMLElement).style.display = 'none';
+                          const parent = (e.target as HTMLElement).parentElement;
+                          if (parent) {
+                            parent.classList.add('bg-slate-100');
+                          }
+                        }}
+                      />
+                    ) : (
+                      <div className="group-hover:text-sky-700 transition-colors">
+                        {getMemberIcon(member.icon)}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-slate-900 font-['Cairo',sans-serif] group-hover:text-sky-700 transition-colors uppercase tracking-tight">

@@ -26,7 +26,8 @@ import {
   PanelBottom,
   MessageCircle,
   ExternalLink,
-  Phone
+  Phone,
+  Code
 } from 'lucide-react';
 
 export const AdminControlDrawer: React.FC = () => {
@@ -83,6 +84,17 @@ export const AdminControlDrawer: React.FC = () => {
     }
   });
   const [settingsSaved, setSettingsSaved] = useState(false);
+
+  // Raw JSON Editor State
+  const [rawJsonText, setRawJsonText] = useState<string>(() => JSON.stringify(siteData, null, 2));
+  const [jsonError, setJsonError] = useState<string | null>(null);
+  const [jsonSaveSuccess, setJsonSaveSuccess] = useState<boolean>(false);
+  const [isFormattingJson, setIsFormattingJson] = useState<boolean>(false);
+
+  // Update raw JSON when siteData changes
+  React.useEffect(() => {
+    setRawJsonText(JSON.stringify(siteData, null, 2));
+  }, [siteData]);
 
   // Edit Submodal state
   const [editModal, setEditModal] = useState<{
@@ -268,6 +280,7 @@ export const AdminControlDrawer: React.FC = () => {
             { id: 'skills', label: 'Skills %', icon: Sliders },
             { id: 'faqs', label: `FAQs (${siteData.faqs.length})`, icon: HelpCircle },
             { id: 'inquiries', label: `Inquiries (${inquiries.length})`, icon: MessageSquare },
+            { id: 'json', label: 'Raw JSON Data', icon: Code },
             { id: 'backup', label: 'Backup / Reset', icon: RotateCcw }
           ].map(tab => {
             const Icon = tab.icon;
@@ -970,6 +983,32 @@ export const AdminControlDrawer: React.FC = () => {
                     />
                   </div>
                 </div>
+
+                <div className="mb-3">
+                  <label className="block font-bold text-slate-400 mb-1 font-mono">MD Photo Image URL (Optional Direct Link)</label>
+                  <input
+                    type="url"
+                    value={settingsForm.mdMessage?.photo || ''}
+                    onChange={(e) => setSettingsForm({
+                      ...settingsForm,
+                      mdMessage: { ...settingsForm.mdMessage, photo: e.target.value }
+                    })}
+                    placeholder="https://images.unsplash.com/... or photo link"
+                    className="w-full px-3.5 py-2 bg-slate-950 border border-slate-700 rounded-none text-white"
+                  />
+                  {settingsForm.mdMessage?.photo && (
+                    <div className="mt-2 p-2 bg-slate-950 border border-slate-800 flex items-center gap-3">
+                      <img
+                        src={settingsForm.mdMessage.photo}
+                        alt="MD Preview"
+                        className="w-10 h-10 object-cover border border-slate-700"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => ((e.target as HTMLElement).style.display = 'none')}
+                      />
+                      <span className="text-[11px] font-mono text-slate-400">MD Photo Preview</span>
+                    </div>
+                  )}
+                </div>
                 <div>
                   <label className="block font-bold text-slate-400 mb-1 font-mono">MD Quote Statement</label>
                   <textarea
@@ -1133,10 +1172,27 @@ export const AdminControlDrawer: React.FC = () => {
               <div className="space-y-3">
                 {siteData.team.map((mem) => (
                   <div key={mem.id} className="p-4 bg-slate-800 rounded-none border border-slate-700 flex items-center justify-between gap-4">
-                    <div>
-                      <h4 className="font-bold text-white text-sm uppercase">{mem.name}</h4>
-                      <p className="text-sky-400 text-xs font-mono">{mem.title}</p>
-                      <p className="text-slate-400 text-[11px] mt-0.5 font-mono">{mem.experience} • {mem.education}</p>
+                    <div className="flex items-center gap-3 min-w-0">
+                      {mem.photo ? (
+                        <img
+                          src={mem.photo}
+                          alt={mem.name}
+                          className="w-12 h-12 object-cover rounded-none shrink-0 bg-slate-950 border border-slate-700"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-12 h-12 bg-slate-950 border border-slate-700 flex items-center justify-center text-sky-400 font-bold text-sm shrink-0">
+                          {mem.name.charAt(0)}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <h4 className="font-bold text-white text-sm uppercase truncate">{mem.name}</h4>
+                        <p className="text-sky-400 text-xs font-mono truncate">{mem.title}</p>
+                        <p className="text-slate-400 text-[11px] mt-0.5 font-mono truncate">{mem.experience} • {mem.education}</p>
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -1350,7 +1406,133 @@ export const AdminControlDrawer: React.FC = () => {
             </div>
           )}
 
-          {/* TAB 10: BACKUP & RESET */}
+          {/* TAB 10: RAW JSON DATA DIRECT EDITOR */}
+          {activeTab === 'json' && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-800 p-4 rounded-none border border-slate-700">
+                <div>
+                  <h3 className="font-bold text-white uppercase tracking-wider font-mono text-sm flex items-center gap-2">
+                    <Code className="w-4 h-4 text-sky-400" />
+                    Central Site Data JSON Editor
+                  </h3>
+                  <p className="text-slate-400 text-xs mt-0.5">
+                    Directly view, edit, or paste site data. All changes persist straight to <code className="text-sky-300 font-mono">/data/site-data.json</code>.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      try {
+                        const parsed = JSON.parse(rawJsonText);
+                        setRawJsonText(JSON.stringify(parsed, null, 2));
+                        setJsonError(null);
+                      } catch (e: any) {
+                        setJsonError(`Cannot format: ${e.message}`);
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-slate-900 hover:bg-slate-700 text-slate-200 text-xs font-mono font-bold uppercase rounded-none border border-slate-700"
+                  >
+                    Format JSON
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(rawJsonText);
+                      alert("JSON copied to clipboard!");
+                    }}
+                    className="px-3 py-1.5 bg-slate-900 hover:bg-slate-700 text-slate-200 text-xs font-mono font-bold uppercase rounded-none border border-slate-700"
+                  >
+                    Copy
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRawJsonText(JSON.stringify(siteData, null, 2));
+                      setJsonError(null);
+                    }}
+                    className="px-3 py-1.5 bg-slate-900 hover:bg-slate-700 text-slate-200 text-xs font-mono font-bold uppercase rounded-none border border-slate-700"
+                  >
+                    Reload
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        setJsonError(null);
+                        const parsed = JSON.parse(rawJsonText);
+                        if (!parsed || typeof parsed !== 'object') {
+                          throw new Error('Invalid JSON structure: Root must be an object.');
+                        }
+                        if (!Array.isArray(parsed.projects) || !Array.isArray(parsed.team) || !Array.isArray(parsed.services)) {
+                          throw new Error('Missing arrays: projects, team, and services must be arrays.');
+                        }
+                        await updateAllData(parsed);
+                        setJsonSaveSuccess(true);
+                        setTimeout(() => setJsonSaveSuccess(false), 4000);
+                      } catch (err: any) {
+                        setJsonError(err.message || 'Invalid JSON syntax');
+                      }
+                    }}
+                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-mono font-bold uppercase tracking-wider rounded-none shadow flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    Save Direct JSON
+                  </button>
+                </div>
+              </div>
+
+              {jsonError && (
+                <div className="p-3 bg-rose-950/80 border border-rose-600 text-rose-200 font-mono text-xs rounded-none">
+                  <strong>JSON Syntax Error:</strong> {jsonError}
+                </div>
+              )}
+
+              {jsonSaveSuccess && (
+                <div className="p-3 bg-emerald-950/80 border border-emerald-500 text-emerald-200 font-mono text-xs rounded-none flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <strong>Success:</strong> Raw JSON data successfully saved and synchronized with server storage!
+                </div>
+              )}
+
+              <div className="relative">
+                <textarea
+                  rows={20}
+                  value={rawJsonText}
+                  onChange={(e) => {
+                    setRawJsonText(e.target.value);
+                    if (jsonError) setJsonError(null);
+                  }}
+                  spellCheck={false}
+                  className="w-full p-4 bg-slate-950 text-sky-300 font-mono text-xs border border-slate-700 rounded-none focus:outline-none focus:border-sky-500 leading-relaxed font-mono resize-y"
+                  placeholder="Paste or edit raw JSON here..."
+                />
+              </div>
+
+              {/* Image URL Guide Cheatsheet */}
+              <div className="bg-slate-800 p-5 rounded-none border border-slate-700 space-y-2 text-xs">
+                <h4 className="font-bold text-sky-400 font-mono uppercase tracking-wider">
+                  Image URL Quick Reference
+                </h4>
+                <p className="text-slate-300">
+                  You can use direct HTTPS web links for all images in the JSON:
+                </p>
+                <ul className="list-disc list-inside space-y-1 font-mono text-[11px] text-slate-400">
+                  <li><strong className="text-slate-200">Projects:</strong> <code className="text-sky-300">"image": "https://..."</code> in each item under <code className="text-sky-300">projects[]</code></li>
+                  <li><strong className="text-slate-200">Team:</strong> <code className="text-sky-300">"photo": "https://..."</code> in each item under <code className="text-sky-300">team[]</code></li>
+                  <li><strong className="text-slate-200">Hero Slides:</strong> <code className="text-sky-300">"image": "https://..."</code> in each item under <code className="text-sky-300">heroSlides[]</code></li>
+                  <li><strong className="text-slate-200">Logo:</strong> <code className="text-sky-300">"logoImageUrl": "https://..."</code> under <code className="text-sky-300">settings.header</code></li>
+                  <li><strong className="text-slate-200">MD Photo:</strong> <code className="text-sky-300">"photo": "https://..."</code> under <code className="text-sky-300">settings.mdMessage</code></li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 11: BACKUP & RESET */}
           {activeTab === 'backup' && (
             <div className="space-y-6">
               <div className="bg-slate-800 p-6 rounded-none border border-slate-700 space-y-3">

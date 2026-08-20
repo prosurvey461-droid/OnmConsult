@@ -174,17 +174,20 @@ async function startServer() {
   });
 
   // Admin: Update entire site data
-  app.put("/api/data", requireAdmin, (req, res) => {
+  const handleUpdateAllData = (req: express.Request, res: express.Response) => {
     const newData = req.body as SiteData;
     if (!newData || !newData.settings) {
       return res.status(400).json({ error: "Invalid site data payload" });
     }
     const success = saveSiteData(newData);
     if (success) {
-      return res.json({ success: true, data: newData, message: "Site content successfully updated." });
+      return res.json({ success: true, data: newData, message: "Site content successfully updated in JSON storage." });
     }
     return res.status(500).json({ error: "Failed to persist site data." });
-  });
+  };
+
+  app.put("/api/data", requireAdmin, handleUpdateAllData);
+  app.post("/api/data", requireAdmin, handleUpdateAllData);
 
   // Admin: Update Site Settings
   app.put("/api/settings", requireAdmin, (req, res) => {

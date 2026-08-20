@@ -165,13 +165,26 @@ export const AboutSection: React.FC<AboutSectionProps> = ({
                 "{settings.mdMessage?.quote || `At ${settings.companyName || "omsconsults"}, our core philosophy is simple: engineering excellence built upon rigorous physics, transparent methodology, and strict fidelity to construction timelines and cost baselines.`}"
               </blockquote>
 
-              <div className="pt-2">
-                <p className="text-sm font-bold text-white font-['Cairo',sans-serif] uppercase tracking-wider">
-                  {settings.mdMessage?.name || "Managing Director"}
-                </p>
-                <p className="text-xs text-sky-400 font-mono">
-                  {settings.mdMessage?.role || settings.companyName || "omsconsults"}
-                </p>
+              <div className="pt-2 flex items-center gap-4">
+                {settings.mdMessage?.photo && (
+                  <img
+                    src={settings.mdMessage.photo}
+                    alt={settings.mdMessage?.name || "Managing Director"}
+                    className="w-12 h-12 rounded-none object-cover border border-slate-700 shrink-0"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                )}
+                <div>
+                  <p className="text-sm font-bold text-white font-['Cairo',sans-serif] uppercase tracking-wider">
+                    {settings.mdMessage?.name || "Managing Director"}
+                  </p>
+                  <p className="text-xs text-sky-400 font-mono">
+                    {settings.mdMessage?.role || settings.companyName || "omsconsults"}
+                  </p>
+                </div>
               </div>
             </div>
 

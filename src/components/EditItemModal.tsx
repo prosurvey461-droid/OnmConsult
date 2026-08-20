@@ -176,17 +176,32 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
                 </div>
               </div>
 
+              {/* Project Image URL with live preview */}
               <div>
                 <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1 font-mono">
-                  Image URL
+                  Project Image URL (Direct Web Link)
                 </label>
                 <input
                   type="url"
                   value={formData.image || ''}
                   onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  placeholder="https://images.unsplash.com/..."
+                  placeholder="https://images.unsplash.com/... or any image link"
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-none focus:outline-none focus:border-sky-700"
                 />
+                {formData.image && (
+                  <div className="mt-2 p-2 bg-slate-100 border border-slate-200 flex items-center gap-3">
+                    <img
+                      src={formData.image}
+                      alt="Project Preview"
+                      className="w-16 h-12 object-cover bg-slate-200"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                    <span className="text-[11px] text-slate-600 font-mono">Image Preview</span>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -308,6 +323,34 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-none focus:outline-none focus:border-sky-700"
                   />
                 </div>
+              </div>
+
+              {/* Member Photo Image URL */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1 font-mono">
+                  Member Photo Image URL (Optional Direct Link)
+                </label>
+                <input
+                  type="url"
+                  value={formData.photo || ''}
+                  onChange={(e) => setFormData({ ...formData, photo: e.target.value })}
+                  placeholder="https://images.unsplash.com/... or any photo link"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-none focus:outline-none focus:border-sky-700"
+                />
+                {formData.photo && (
+                  <div className="mt-2 p-2 bg-slate-100 border border-slate-200 flex items-center gap-3">
+                    <img
+                      src={formData.photo}
+                      alt="Photo Preview"
+                      className="w-12 h-12 object-cover bg-slate-200"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                    <span className="text-[11px] text-slate-600 font-mono">Photo Preview (Leave blank to use default icon)</span>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -464,14 +507,29 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
 
               <div>
                 <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1 font-mono">
-                  Image URL
+                  Slide Image URL (Direct Web Link)
                 </label>
                 <input
                   type="url"
                   value={formData.image || ''}
                   onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                  placeholder="https://images.unsplash.com/... or image link"
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-none focus:outline-none focus:border-sky-700"
                 />
+                {formData.image && (
+                  <div className="mt-2 p-2 bg-slate-100 border border-slate-200 flex items-center gap-3">
+                    <img
+                      src={formData.image}
+                      alt="Slide Preview"
+                      className="w-20 h-12 object-cover bg-slate-200"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                    <span className="text-[11px] text-slate-600 font-mono">Slide Background Image Preview</span>
+                  </div>
+                )}
               </div>
 
               <div>
