@@ -36,6 +36,7 @@ export const AdminControlDrawer: React.FC = () => {
     setAdminDrawerOpen, 
     adminActiveTab, 
     setAdminActiveTab, 
+    updateAllData,
     updateSettings, 
     saveProject,
     deleteProject,
@@ -49,7 +50,8 @@ export const AdminControlDrawer: React.FC = () => {
     updateSlides,
     inquiries,
     deleteInquiry,
-    resetDefaults
+    resetDefaults,
+    refreshData
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<string>(adminActiveTab || 'overview');
@@ -132,13 +134,24 @@ export const AdminControlDrawer: React.FC = () => {
     });
   }, [siteData.settings]);
 
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   if (!adminDrawerOpen) return null;
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    await updateSettings(settingsForm);
-    setSettingsSaved(true);
-    setTimeout(() => setSettingsSaved(false), 3000);
+    setIsSaving(true);
+    setSaveError(null);
+    const success = await updateSettings(settingsForm);
+    setIsSaving(false);
+    if (success) {
+      setSettingsSaved(true);
+      setTimeout(() => setSettingsSaved(false), 4000);
+    } else {
+      setSaveError("Failed to save changes to the central server. Please check connection.");
+      setTimeout(() => setSaveError(null), 5000);
+    }
   };
 
   const handleOpenEdit = (type: EditModalType, item: any = null, isNew = false) => {
@@ -151,28 +164,35 @@ export const AdminControlDrawer: React.FC = () => {
   };
 
   const handleSaveItem = async (data: any, isNew: boolean) => {
+    setIsSaving(true);
+    let success = false;
     switch (editModal.type) {
       case 'project':
-        await saveProject(data, isNew);
+        success = await saveProject(data, isNew);
         break;
       case 'team':
-        await saveTeamMember(data, isNew);
+        success = await saveTeamMember(data, isNew);
         break;
       case 'service':
-        await saveService(data, isNew);
+        success = await saveService(data, isNew);
         break;
       case 'faq':
-        await saveFaq(data, isNew);
+        success = await saveFaq(data, isNew);
         break;
       case 'slide':
         if (isNew) {
           const newSlide = { ...data, id: `slide_${Date.now()}` };
-          await updateSlides([...siteData.heroSlides, newSlide]);
+          success = await updateSlides([...siteData.heroSlides, newSlide]);
         } else {
           const updated = siteData.heroSlides.map(s => s.id === data.id ? data : s);
-          await updateSlides(updated);
+          success = await updateSlides(updated);
         }
         break;
+    }
+    setIsSaving(false);
+    if (success) {
+      setSettingsSaved(true);
+      setTimeout(() => setSettingsSaved(false), 3000);
     }
   };
 
@@ -191,7 +211,7 @@ export const AdminControlDrawer: React.FC = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(siteData, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `surveypro-backup-${new Date().toISOString().slice(0,10)}.json`);
+    downloadAnchor.setAttribute("download", `omsconsults-backup-${new Date().toISOString().slice(0,10)}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -211,17 +231,26 @@ export const AdminControlDrawer: React.FC = () => {
                 ADMIN CONTROL CENTER
               </span>
               <h2 className="text-lg font-bold font-['Cairo',sans-serif] text-white uppercase tracking-tight">
-                Survey Pro CMS Engine
+                {siteData.settings.companyName || "omsconsults"} CMS Engine
               </h2>
             </div>
           </div>
 
-          <button
-            onClick={() => setAdminDrawerOpen(false)}
-            className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-none transition-colors border border-slate-700"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => updateAllData(siteData)}
+              title="Force sync current data to central server"
+              className="px-3 py-1.5 bg-slate-800 hover:bg-sky-700 text-sky-300 hover:text-white border border-slate-700 text-[10px] font-mono font-bold uppercase transition-colors"
+            >
+              Sync Live Server
+            </button>
+            <button
+              onClick={() => setAdminDrawerOpen(false)}
+              className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-none transition-colors border border-slate-700"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Drawer Tabs Navigation */}

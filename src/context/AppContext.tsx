@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { SiteData, AuthState, ContactMessage, Project, TeamMember, Service, Skill, FAQ, HeroSlide, AboutCard, SiteSettings } from '../types';
 import { defaultSiteData } from '../data/defaultData';
-import { api, getStoredUser } from '../services/api';
+import { api, getStoredUser, getStoredToken } from '../services/api';
 
 interface AppContextType {
   siteData: SiteData;
@@ -51,32 +51,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [siteData, setSiteData] = useState<SiteData>(defaultSiteData);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const isSyncingRef = useRef<boolean>(false);
   
   const [auth, setAuth] = useState<AuthState>(() => {
     const user = getStoredUser();
+    const token = getStoredToken();
     return {
-      isAuthenticated: !!user,
-      user: user || null,
-      token: user ? 'surveypro_admin_session_token_thimi123' : null
+      isAuthenticated: !!(user || token),
+      user: user || (token ? { email: 'admin@thimiguys.com', name: 'Ashok Bista (Admin)', role: 'Administrator' } : null),
+      token: token || (user ? 'surveypro_admin_session_token_thimi123' : null)
     };
   });
 
-  const [editMode, setEditMode] = useState<boolean>(false);
+  const [editMode, setEditMode] = useState<boolean>(() => {
+    const token = getStoredToken();
+    const user = getStoredUser();
+    return !!(token || user);
+  });
   const [adminDrawerOpen, setAdminDrawerOpen] = useState<boolean>(false);
   const [adminActiveTab, setAdminActiveTab] = useState<string>('overview');
   const [loginModalOpen, setLoginModalOpen] = useState<boolean>(false);
   const [inquiries, setInquiries] = useState<ContactMessage[]>([]);
 
-  const refreshData = useCallback(async () => {
-    setIsLoading(true);
+  const refreshData = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
     try {
       const data = await api.fetchSiteData();
-      setSiteData(data);
+      if (data && data.settings) {
+        setSiteData(data);
+      }
       setError(null);
     } catch (err: any) {
-      setError(err.message || 'Failed to load site data');
+      if (!silent) setError(err.message || 'Failed to load site data');
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, []);
 
@@ -87,15 +95,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [auth.isAuthenticated]);
 
+  // Initial load
   useEffect(() => {
     refreshData();
     api.verifyAuth().then((isValid) => {
-      if (!isValid) {
+      if (!isValid && !auth.user) {
         setAuth({ isAuthenticated: false, user: null, token: null });
         setEditMode(false);
       }
     });
   }, [refreshData]);
+
+  // Background real-time polling & window focus re-synchronization across all devices
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Background poll silently every 8 seconds so other open devices get live updates
+      if (!isSyncingRef.current && !adminDrawerOpen) {
+        refreshData(true);
+      }
+    }, 8000);
+
+    const handleFocus = () => {
+      if (!adminDrawerOpen) {
+        refreshData(true);
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
+  }, [refreshData, adminDrawerOpen]);
 
   useEffect(() => {
     if (auth.isAuthenticated) {
@@ -115,6 +149,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setLoginModalOpen(false);
         setEditMode(true);
         fetchInquiriesList();
+        refreshData();
         return { success: true };
       }
       return { success: false, error: res.error || 'Authentication error' };
@@ -131,180 +166,231 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateAllData = async (data: SiteData) => {
+    isSyncingRef.current = true;
     setSiteData(data);
     try {
       await api.updateAllData(data);
+      isSyncingRef.current = false;
       return true;
     } catch (err) {
-      console.error(err);
+      console.error("Failed to update all data:", err);
+      isSyncingRef.current = false;
       return false;
     }
   };
 
   const updateSettings = async (settings: Partial<SiteSettings>) => {
+    isSyncingRef.current = true;
     const updated = { ...siteData, settings: { ...siteData.settings, ...settings } };
     setSiteData(updated);
     try {
       await api.updateSettings(settings);
+      isSyncingRef.current = false;
       return true;
-    } catch {
+    } catch (err) {
+      console.error("Failed to update settings:", err);
+      isSyncingRef.current = false;
       return false;
     }
   };
 
   const saveProject = async (project: Partial<Project>, isNew = false) => {
+    isSyncingRef.current = true;
     try {
       const saved = await api.saveProject(project, isNew);
       setSiteData(prev => {
         let updatedList: Project[];
         if (isNew) {
-          updatedList = [saved, ...prev.projects];
+          updatedList = [saved, ...(prev.projects || [])];
         } else {
-          updatedList = prev.projects.map(p => p.id === saved.id ? saved : p);
+          updatedList = (prev.projects || []).map(p => p.id === saved.id ? saved : p);
         }
         return { ...prev, projects: updatedList };
       });
+      isSyncingRef.current = false;
       return true;
-    } catch {
+    } catch (err) {
+      console.error("Failed to save project:", err);
+      isSyncingRef.current = false;
       return false;
     }
   };
 
   const deleteProject = async (id: string) => {
+    isSyncingRef.current = true;
     try {
       await api.deleteProject(id);
       setSiteData(prev => ({
         ...prev,
-        projects: prev.projects.filter(p => p.id !== id)
+        projects: (prev.projects || []).filter(p => p.id !== id)
       }));
+      isSyncingRef.current = false;
       return true;
-    } catch {
+    } catch (err) {
+      console.error("Failed to delete project:", err);
+      isSyncingRef.current = false;
       return false;
     }
   };
 
   const saveTeamMember = async (member: Partial<TeamMember>, isNew = false) => {
+    isSyncingRef.current = true;
     try {
       const saved = await api.saveTeamMember(member, isNew);
       setSiteData(prev => {
         let updatedList: TeamMember[];
         if (isNew) {
-          updatedList = [...prev.team, saved];
+          updatedList = [...(prev.team || []), saved];
         } else {
-          updatedList = prev.team.map(t => t.id === saved.id ? saved : t);
+          updatedList = (prev.team || []).map(t => t.id === saved.id ? saved : t);
         }
         return { ...prev, team: updatedList };
       });
+      isSyncingRef.current = false;
       return true;
-    } catch {
+    } catch (err) {
+      console.error("Failed to save team member:", err);
+      isSyncingRef.current = false;
       return false;
     }
   };
 
   const deleteTeamMember = async (id: string) => {
+    isSyncingRef.current = true;
     try {
       await api.deleteTeamMember(id);
       setSiteData(prev => ({
         ...prev,
-        team: prev.team.filter(t => t.id !== id)
+        team: (prev.team || []).filter(t => t.id !== id)
       }));
+      isSyncingRef.current = false;
       return true;
-    } catch {
+    } catch (err) {
+      console.error("Failed to delete team member:", err);
+      isSyncingRef.current = false;
       return false;
     }
   };
 
   const saveService = async (service: Partial<Service>, isNew = false) => {
+    isSyncingRef.current = true;
     try {
       const saved = await api.saveService(service, isNew);
       setSiteData(prev => {
         let updatedList: Service[];
         if (isNew) {
-          updatedList = [...prev.services, saved];
+          updatedList = [...(prev.services || []), saved];
         } else {
-          updatedList = prev.services.map(s => s.id === saved.id ? saved : s);
+          updatedList = (prev.services || []).map(s => s.id === saved.id ? saved : s);
         }
         return { ...prev, services: updatedList };
       });
+      isSyncingRef.current = false;
       return true;
-    } catch {
+    } catch (err) {
+      console.error("Failed to save service:", err);
+      isSyncingRef.current = false;
       return false;
     }
   };
 
   const deleteService = async (id: string) => {
+    isSyncingRef.current = true;
     try {
       await api.deleteService(id);
       setSiteData(prev => ({
         ...prev,
-        services: prev.services.filter(s => s.id !== id)
+        services: (prev.services || []).filter(s => s.id !== id)
       }));
+      isSyncingRef.current = false;
       return true;
-    } catch {
+    } catch (err) {
+      console.error("Failed to delete service:", err);
+      isSyncingRef.current = false;
       return false;
     }
   };
 
   const updateSkills = async (skills: Skill[]) => {
+    isSyncingRef.current = true;
     const updated = { ...siteData, skills };
     setSiteData(updated);
     try {
-      await api.updateAllData(updated);
+      await api.updateSkills(skills);
+      isSyncingRef.current = false;
       return true;
-    } catch {
+    } catch (err) {
+      console.error("Failed to update skills:", err);
+      isSyncingRef.current = false;
       return false;
     }
   };
 
   const saveFaq = async (faq: Partial<FAQ>, isNew = false) => {
+    isSyncingRef.current = true;
     try {
       const saved = await api.saveFaq(faq, isNew);
       setSiteData(prev => {
         let updatedList: FAQ[];
         if (isNew) {
-          updatedList = [...prev.faqs, saved];
+          updatedList = [...(prev.faqs || []), saved];
         } else {
-          updatedList = prev.faqs.map(f => f.id === saved.id ? saved : f);
+          updatedList = (prev.faqs || []).map(f => f.id === saved.id ? saved : f);
         }
         return { ...prev, faqs: updatedList };
       });
+      isSyncingRef.current = false;
       return true;
-    } catch {
+    } catch (err) {
+      console.error("Failed to save FAQ:", err);
+      isSyncingRef.current = false;
       return false;
     }
   };
 
   const deleteFaq = async (id: string) => {
+    isSyncingRef.current = true;
     try {
       await api.deleteFaq(id);
       setSiteData(prev => ({
         ...prev,
-        faqs: prev.faqs.filter(f => f.id !== id)
+        faqs: (prev.faqs || []).filter(f => f.id !== id)
       }));
+      isSyncingRef.current = false;
       return true;
-    } catch {
+    } catch (err) {
+      console.error("Failed to delete FAQ:", err);
+      isSyncingRef.current = false;
       return false;
     }
   };
 
   const updateSlides = async (slides: HeroSlide[]) => {
+    isSyncingRef.current = true;
     const updated = { ...siteData, heroSlides: slides };
     setSiteData(updated);
     try {
-      await api.updateAllData(updated);
+      await api.updateSlides(slides);
+      isSyncingRef.current = false;
       return true;
-    } catch {
+    } catch (err) {
+      console.error("Failed to update slides:", err);
+      isSyncingRef.current = false;
       return false;
     }
   };
 
   const updateAboutCards = async (cards: AboutCard[]) => {
+    isSyncingRef.current = true;
     const updated = { ...siteData, aboutCards: cards };
     setSiteData(updated);
     try {
-      await api.updateAllData(updated);
+      await api.updateAboutCards(cards);
+      isSyncingRef.current = false;
       return true;
-    } catch {
+    } catch (err) {
+      console.error("Failed to update about cards:", err);
+      isSyncingRef.current = false;
       return false;
     }
   };

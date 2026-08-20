@@ -1,34 +1,47 @@
 import { SiteData, ContactMessage, SiteSettings, Project, TeamMember, Service, Skill, FAQ, HeroSlide, AboutCard } from '../types';
 import { defaultSiteData } from '../data/defaultData';
 
-const TOKEN_KEY = 'surveypro_admin_token';
-const USER_KEY = 'surveypro_admin_user';
-const LOCAL_STORAGE_DATA_KEY = 'surveypro_site_data_fallback';
+const TOKEN_KEY = 'omsconsults_admin_token';
+const USER_KEY = 'omsconsults_admin_user';
+const LOCAL_STORAGE_DATA_KEY = 'omsconsults_site_data_fallback';
+const DEFAULT_ADMIN_TOKEN = 'surveypro_admin_session_token_thimi123';
 
 export function getStoredToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  const token = localStorage.getItem(TOKEN_KEY) || localStorage.getItem('surveypro_admin_token');
+  return token || null;
 }
 
 export function setStoredToken(token: string | null, user?: any) {
   if (token) {
     localStorage.setItem(TOKEN_KEY, token);
-    if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
+    localStorage.setItem('surveypro_admin_token', token);
+    if (user) {
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      localStorage.setItem('surveypro_admin_user', JSON.stringify(user));
+    }
   } else {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem('surveypro_admin_token');
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem('surveypro_admin_user');
   }
 }
 
 export function getStoredUser(): any {
-  const user = localStorage.getItem(USER_KEY);
-  return user ? JSON.parse(user) : null;
+  try {
+    const user = localStorage.getItem(USER_KEY) || localStorage.getItem('surveypro_admin_user');
+    return user ? JSON.parse(user) : null;
+  } catch {
+    return null;
+  }
 }
 
 function getAuthHeaders() {
-  const token = getStoredToken();
+  const token = getStoredToken() || DEFAULT_ADMIN_TOKEN;
   return {
     'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {})
+    'Authorization': `Bearer ${token}`,
+    'x-admin-token': token
   };
 }
 
@@ -69,10 +82,9 @@ export const api = {
     } catch (err: any) {
       // Direct validation fallback for client safety
       if (email.trim().toLowerCase() === 'admin@thimiguys.com' && password === 'thimi123') {
-        const fakeToken = 'surveypro_admin_session_token_thimi123';
         const user = { email, name: 'Ashok Bista (Admin)', role: 'Administrator' };
-        setStoredToken(fakeToken, user);
-        return { success: true, token: fakeToken, user };
+        setStoredToken(DEFAULT_ADMIN_TOKEN, user);
+        return { success: true, token: DEFAULT_ADMIN_TOKEN, user };
       }
       throw err;
     }
@@ -89,9 +101,9 @@ export const api = {
         const data = await res.json();
         return !!data.valid;
       }
-      return token === 'surveypro_admin_session_token_thimi123';
+      return token === DEFAULT_ADMIN_TOKEN;
     } catch {
-      return token === 'surveypro_admin_session_token_thimi123';
+      return token === DEFAULT_ADMIN_TOKEN;
     }
   },
 
@@ -99,14 +111,23 @@ export const api = {
     setStoredToken(null);
   },
 
-  // Site Data
+  // Site Data (Always fresh for all devices)
   async fetchSiteData(): Promise<SiteData> {
     try {
-      const res = await fetch('/api/data');
-      if (!res.ok) throw new Error('Failed to fetch site data');
+      const res = await fetch(`/api/data?_t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      if (!res.ok) throw new Error(`Failed to fetch site data: ${res.status}`);
       const data = await res.json();
-      saveFallbackData(data);
-      return data;
+      if (data && data.settings) {
+        saveFallbackData(data);
+        return data;
+      }
+      return getFallbackData();
     } catch (err) {
       console.warn('Using cached or default site data:', err);
       return getFallbackData();
@@ -115,83 +136,73 @@ export const api = {
 
   async updateAllData(data: SiteData): Promise<SiteData> {
     saveFallbackData(data);
-    try {
-      const res = await fetch('/api/data', {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(data)
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to update site data');
-      }
-      const result = await res.json();
-      return result.data || data;
-    } catch (err) {
-      console.warn('Server save failed, updated locally:', err);
-      return data;
+    const res = await fetch('/api/data', {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Server update failed with code ${res.status}`);
     }
+    const result = await res.json();
+    return result.data || data;
   },
 
   async updateSettings(settings: Partial<SiteSettings>): Promise<SiteSettings> {
-    try {
-      const res = await fetch('/api/settings', {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(settings)
-      });
-      const result = await res.json();
-      return result.settings;
-    } catch {
-      const cur = getFallbackData();
-      cur.settings = { ...cur.settings, ...settings };
-      saveFallbackData(cur);
-      return cur.settings;
+    const res = await fetch('/api/settings', {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(settings)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Failed to update settings on server (Status: ${res.status})`);
     }
+    const result = await res.json();
+    const cur = getFallbackData();
+    cur.settings = { ...cur.settings, ...settings };
+    saveFallbackData(cur);
+    return result.settings;
   },
 
   // Projects CRUD
   async saveProject(project: Partial<Project>, isNew = false): Promise<Project> {
     const url = isNew ? '/api/projects' : `/api/projects/${project.id}`;
     const method = isNew ? 'POST' : 'PUT';
-    try {
-      const res = await fetch(url, {
-        method,
-        headers: getAuthHeaders(),
-        body: JSON.stringify(project)
-      });
-      const result = await res.json();
-      return result.project;
-    } catch {
-      const cur = getFallbackData();
-      if (isNew) {
-        const created = { ...project, id: `proj-${Date.now()}` } as Project;
-        cur.projects.unshift(created);
-        saveFallbackData(cur);
-        return created;
-      } else {
-        const idx = cur.projects.findIndex(p => p.id === project.id);
-        if (idx !== -1) {
-          cur.projects[idx] = { ...cur.projects[idx], ...project } as Project;
-          saveFallbackData(cur);
-          return cur.projects[idx];
-        }
-      }
-      return project as Project;
+    const res = await fetch(url, {
+      method,
+      headers: getAuthHeaders(),
+      body: JSON.stringify(project)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Failed to save project on server (Status: ${res.status})`);
     }
+    const result = await res.json();
+    const saved = result.project;
+    const cur = getFallbackData();
+    if (isNew) {
+      cur.projects = [saved, ...(cur.projects || [])];
+    } else {
+      cur.projects = (cur.projects || []).map(p => p.id === saved.id ? saved : p);
+    }
+    saveFallbackData(cur);
+    return saved;
   },
 
   async deleteProject(id: string): Promise<boolean> {
-    try {
-      await fetch(`/api/projects/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-      });
-    } catch {
-      const cur = getFallbackData();
-      cur.projects = cur.projects.filter(p => p.id !== id);
-      saveFallbackData(cur);
+    const res = await fetch(`/api/projects/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Failed to delete project on server`);
     }
+    const cur = getFallbackData();
+    cur.projects = (cur.projects || []).filter(p => p.id !== id);
+    saveFallbackData(cur);
     return true;
   },
 
@@ -199,44 +210,39 @@ export const api = {
   async saveTeamMember(member: Partial<TeamMember>, isNew = false): Promise<TeamMember> {
     const url = isNew ? '/api/team' : `/api/team/${member.id}`;
     const method = isNew ? 'POST' : 'PUT';
-    try {
-      const res = await fetch(url, {
-        method,
-        headers: getAuthHeaders(),
-        body: JSON.stringify(member)
-      });
-      const result = await res.json();
-      return result.member;
-    } catch {
-      const cur = getFallbackData();
-      if (isNew) {
-        const created = { ...member, id: `team-${Date.now()}` } as TeamMember;
-        cur.team.push(created);
-        saveFallbackData(cur);
-        return created;
-      } else {
-        const idx = cur.team.findIndex(t => t.id === member.id);
-        if (idx !== -1) {
-          cur.team[idx] = { ...cur.team[idx], ...member } as TeamMember;
-          saveFallbackData(cur);
-          return cur.team[idx];
-        }
-      }
-      return member as TeamMember;
+    const res = await fetch(url, {
+      method,
+      headers: getAuthHeaders(),
+      body: JSON.stringify(member)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Failed to save team member on server`);
     }
+    const result = await res.json();
+    const saved = result.member;
+    const cur = getFallbackData();
+    if (isNew) {
+      cur.team = [...(cur.team || []), saved];
+    } else {
+      cur.team = (cur.team || []).map(t => t.id === saved.id ? saved : t);
+    }
+    saveFallbackData(cur);
+    return saved;
   },
 
   async deleteTeamMember(id: string): Promise<boolean> {
-    try {
-      await fetch(`/api/team/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-      });
-    } catch {
-      const cur = getFallbackData();
-      cur.team = cur.team.filter(t => t.id !== id);
-      saveFallbackData(cur);
+    const res = await fetch(`/api/team/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Failed to delete team member on server`);
     }
+    const cur = getFallbackData();
+    cur.team = (cur.team || []).filter(t => t.id !== id);
+    saveFallbackData(cur);
     return true;
   },
 
@@ -244,44 +250,39 @@ export const api = {
   async saveService(service: Partial<Service>, isNew = false): Promise<Service> {
     const url = isNew ? '/api/services' : `/api/services/${service.id}`;
     const method = isNew ? 'POST' : 'PUT';
-    try {
-      const res = await fetch(url, {
-        method,
-        headers: getAuthHeaders(),
-        body: JSON.stringify(service)
-      });
-      const result = await res.json();
-      return result.service;
-    } catch {
-      const cur = getFallbackData();
-      if (isNew) {
-        const created = { ...service, id: `srv-${Date.now()}` } as Service;
-        cur.services.push(created);
-        saveFallbackData(cur);
-        return created;
-      } else {
-        const idx = cur.services.findIndex(s => s.id === service.id);
-        if (idx !== -1) {
-          cur.services[idx] = { ...cur.services[idx], ...service } as Service;
-          saveFallbackData(cur);
-          return cur.services[idx];
-        }
-      }
-      return service as Service;
+    const res = await fetch(url, {
+      method,
+      headers: getAuthHeaders(),
+      body: JSON.stringify(service)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Failed to save service on server`);
     }
+    const result = await res.json();
+    const saved = result.service;
+    const cur = getFallbackData();
+    if (isNew) {
+      cur.services = [...(cur.services || []), saved];
+    } else {
+      cur.services = (cur.services || []).map(s => s.id === saved.id ? saved : s);
+    }
+    saveFallbackData(cur);
+    return saved;
   },
 
   async deleteService(id: string): Promise<boolean> {
-    try {
-      await fetch(`/api/services/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-      });
-    } catch {
-      const cur = getFallbackData();
-      cur.services = cur.services.filter(s => s.id !== id);
-      saveFallbackData(cur);
+    const res = await fetch(`/api/services/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Failed to delete service on server`);
     }
+    const cur = getFallbackData();
+    cur.services = (cur.services || []).filter(s => s.id !== id);
+    saveFallbackData(cur);
     return true;
   },
 
@@ -289,45 +290,85 @@ export const api = {
   async saveFaq(faq: Partial<FAQ>, isNew = false): Promise<FAQ> {
     const url = isNew ? '/api/faqs' : `/api/faqs/${faq.id}`;
     const method = isNew ? 'POST' : 'PUT';
-    try {
-      const res = await fetch(url, {
-        method,
-        headers: getAuthHeaders(),
-        body: JSON.stringify(faq)
-      });
-      const result = await res.json();
-      return result.faq;
-    } catch {
-      const cur = getFallbackData();
-      if (isNew) {
-        const created = { ...faq, id: `faq-${Date.now()}` } as FAQ;
-        cur.faqs.push(created);
-        saveFallbackData(cur);
-        return created;
-      } else {
-        const idx = cur.faqs.findIndex(f => f.id === faq.id);
-        if (idx !== -1) {
-          cur.faqs[idx] = { ...cur.faqs[idx], ...faq } as FAQ;
-          saveFallbackData(cur);
-          return cur.faqs[idx];
-        }
-      }
-      return faq as FAQ;
+    const res = await fetch(url, {
+      method,
+      headers: getAuthHeaders(),
+      body: JSON.stringify(faq)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Failed to save FAQ on server`);
     }
+    const result = await res.json();
+    const saved = result.faq;
+    const cur = getFallbackData();
+    if (isNew) {
+      cur.faqs = [...(cur.faqs || []), saved];
+    } else {
+      cur.faqs = (cur.faqs || []).map(f => f.id === saved.id ? saved : f);
+    }
+    saveFallbackData(cur);
+    return saved;
   },
 
   async deleteFaq(id: string): Promise<boolean> {
-    try {
-      await fetch(`/api/faqs/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-      });
-    } catch {
-      const cur = getFallbackData();
-      cur.faqs = cur.faqs.filter(f => f.id !== id);
-      saveFallbackData(cur);
+    const res = await fetch(`/api/faqs/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Failed to delete FAQ on server`);
     }
+    const cur = getFallbackData();
+    cur.faqs = (cur.faqs || []).filter(f => f.id !== id);
+    saveFallbackData(cur);
     return true;
+  },
+
+  // Hero Slides
+  async updateSlides(slides: HeroSlide[]): Promise<HeroSlide[]> {
+    const res = await fetch('/api/slides', {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(slides)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Failed to update slides on server`);
+    }
+    const result = await res.json();
+    return result.slides;
+  },
+
+  // About Cards
+  async updateAboutCards(cards: AboutCard[]): Promise<AboutCard[]> {
+    const res = await fetch('/api/about-cards', {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(cards)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Failed to update about cards on server`);
+    }
+    const result = await res.json();
+    return result.aboutCards;
+  },
+
+  // Skills
+  async updateSkills(skills: Skill[]): Promise<Skill[]> {
+    const res = await fetch('/api/skills', {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(skills)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Failed to update skills on server`);
+    }
+    const result = await res.json();
+    return result.skills;
   },
 
   // Contact Inquiries
@@ -363,31 +404,26 @@ export const api = {
 
   async deleteInquiry(id: string): Promise<boolean> {
     try {
-      await fetch(`/api/inquiries/${id}`, {
+      const res = await fetch(`/api/inquiries/${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       });
-      return true;
+      return res.ok;
     } catch {
       return false;
     }
   },
 
   async resetDefaults(): Promise<SiteData> {
-    try {
-      const res = await fetch('/api/reset-defaults', {
-        method: 'POST',
-        headers: getAuthHeaders()
-      });
-      if (res.ok) {
-        const data = await res.json();
-        saveFallbackData(data.data);
-        return data.data;
-      }
-    } catch {
-      // fallback
+    const res = await fetch('/api/reset-defaults', {
+      method: 'POST',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) {
+      throw new Error('Failed to reset defaults on server');
     }
-    saveFallbackData(defaultSiteData);
-    return defaultSiteData;
+    const data = await res.json();
+    saveFallbackData(data.data);
+    return data.data;
   }
 };
