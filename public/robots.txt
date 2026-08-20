@@ -1,0 +1,22 @@
+# robots.txt for omsconsults
+# Website: https://omsconsults.com
+
+User-agent: *
+Allow: /
+Allow: /#projects
+Allow: /#services
+Allow: /#about
+Allow: /#team
+Allow: /#faqs
+Allow: /#contact
+Allow: /?project=*
+Allow: /sitemap.xml
+
+# Protect internal administration and private API endpoints
+Disallow: /admin
+Disallow: /api/
+Disallow: /#admin
+
+# Search Engine Sitemap Location
+Host: https://omsconsults.com
+Sitemap: https://omsconsults.com/sitemap.xml

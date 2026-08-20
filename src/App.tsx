@@ -34,12 +34,17 @@ export function App() {
     updateAboutCards 
   } = useApp();
 
-  // Listen for /admin URL route or #admin hash
+  // Listen for /admin URL route, #admin hash, and ?project= deep-links
   useEffect(() => {
-    const checkAdminRoute = () => {
+    if (loading) return;
+
+    const handleUrlRoutes = () => {
       const path = window.location.pathname.toLowerCase();
       const hash = window.location.hash.toLowerCase();
+      const urlParams = new URLSearchParams(window.location.search);
+      const projectIdParam = urlParams.get('project') || urlParams.get('p');
       
+      // Admin route handling
       if (path.includes('/admin') || hash === '#admin' || hash === '#/admin') {
         if (auth.isAuthenticated) {
           setAdminDrawerOpen(true);
@@ -47,20 +52,127 @@ export function App() {
           setLoginModalOpen(true);
         }
       }
+
+      // Project deep linking from URL search param (?project=proj-1) or hash (#project-proj-1)
+      if (projectIdParam) {
+        const found = siteData.projects.find(p => p.id.toLowerCase() === projectIdParam.toLowerCase());
+        if (found) {
+          setSelectedProject(found);
+        }
+      } else if (hash.startsWith('#project-')) {
+        const pId = hash.replace('#project-', '');
+        const found = siteData.projects.find(p => p.id.toLowerCase() === pId.toLowerCase());
+        if (found) {
+          setSelectedProject(found);
+        }
+      }
     };
 
-    checkAdminRoute();
-    window.addEventListener('popstate', checkAdminRoute);
-    window.addEventListener('hashchange', checkAdminRoute);
+    handleUrlRoutes();
+    window.addEventListener('popstate', handleUrlRoutes);
+    window.addEventListener('hashchange', handleUrlRoutes);
 
     return () => {
-      window.removeEventListener('popstate', checkAdminRoute);
-      window.removeEventListener('hashchange', checkAdminRoute);
+      window.removeEventListener('popstate', handleUrlRoutes);
+      window.removeEventListener('hashchange', handleUrlRoutes);
     };
-  }, [auth.isAuthenticated, setLoginModalOpen, setAdminDrawerOpen]);
+  }, [loading, siteData.projects, auth.isAuthenticated, setLoginModalOpen, setAdminDrawerOpen]);
 
-  // Selected project for detailed view modal
+  // Selected project for detailed view modal & SEO indexing
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+
+  // Dynamic SEO & Structured Data for Active Project
+  useEffect(() => {
+    const existingScript = document.getElementById('project-jsonld');
+    if (existingScript) {
+      existingScript.remove();
+    }
+
+    if (selectedProject) {
+      const pageTitle = `${selectedProject.title} (${selectedProject.capacity || selectedProject.category}) | omsconsults Nepal`;
+      document.title = pageTitle;
+
+      // Update description meta tag
+      const metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc) {
+        metaDesc.setAttribute('content', `${selectedProject.title}: ${selectedProject.description || selectedProject.details || ''} - Engineering & design by omsconsults, Kathmandu Nepal.`);
+      }
+
+      // Update Open Graph tags
+      const ogTitle = document.querySelector('meta[property="og:title"]');
+      if (ogTitle) ogTitle.setAttribute('content', pageTitle);
+
+      const ogImage = document.querySelector('meta[property="og:image"]');
+      if (ogImage && selectedProject.image) ogImage.setAttribute('content', selectedProject.image);
+
+      const ogUrl = document.querySelector('meta[property="og:url"]');
+      if (ogUrl) ogUrl.setAttribute('content', `${window.location.origin}/?project=${encodeURIComponent(selectedProject.id)}`);
+
+      // Inject Schema.org Project JSON-LD Structured Data
+      const script = document.createElement('script');
+      script.id = 'project-jsonld';
+      script.type = 'application/ld+json';
+      script.text = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "CreativeWork",
+        "name": selectedProject.title,
+        "headline": selectedProject.title,
+        "description": selectedProject.description || selectedProject.details,
+        "image": selectedProject.image,
+        "creator": {
+          "@type": "Organization",
+          "name": "omsconsults",
+          "url": "https://omsconsults.com"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "omsconsults",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://images.unsplash.com/photo-1497435334941-8c899ee9e8e9?auto=format&fit=crop&q=80&w=800"
+          }
+        },
+        "locationCreated": {
+          "@type": "Place",
+          "name": selectedProject.location || "Nepal"
+        },
+        "genre": selectedProject.category,
+        "dateCreated": selectedProject.year || "2023",
+        "keywords": `hydropower Nepal, ${selectedProject.title}, engineering design, ${selectedProject.category}`
+      });
+      document.head.appendChild(script);
+
+      // Update URL query string without reloading page
+      const currentUrl = new URL(window.location.href);
+      if (currentUrl.searchParams.get('project') !== selectedProject.id) {
+        currentUrl.searchParams.set('project', selectedProject.id);
+        window.history.pushState({ projectId: selectedProject.id }, '', currentUrl.toString());
+      }
+    } else {
+      // Revert to site defaults
+      document.title = "omsconsults | Engineering Design, Hydropower & Construction Supervision";
+      const metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc) {
+        metaDesc.setAttribute('content', 'omsconsults delivers engineering design, feasibility studies, detailed hydropower & solar PV systems design, hydraulic analysis, and FIDIC construction supervision in Kathmandu, Nepal.');
+      }
+      const ogTitle = document.querySelector('meta[property="og:title"]');
+      if (ogTitle) ogTitle.setAttribute('content', 'omsconsults | Engineering Design & Construction Supervision');
+      const ogImage = document.querySelector('meta[property="og:image"]');
+      if (ogImage) ogImage.setAttribute('content', 'https://images.unsplash.com/photo-1497435334941-8c899ee9e8e9?auto=format&fit=crop&q=80&w=1200');
+
+      // Clear ?project= parameter from URL
+      const currentUrl = new URL(window.location.href);
+      if (currentUrl.searchParams.has('project')) {
+        currentUrl.searchParams.delete('project');
+        window.history.pushState({}, '', currentUrl.pathname + (currentUrl.hash || ''));
+      }
+    }
+
+    return () => {
+      const s = document.getElementById('project-jsonld');
+      if (s) s.remove();
+    };
+  }, [selectedProject]);
 
   // Unified item editing modal state for on-page quick edits
   const [editModalState, setEditModalState] = useState<{

@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+
+  <!-- Homepage -->
+  <url>
+    <loc>https://omsconsults.com/</loc>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1497435334941-8c899ee9e8e9?auto=format&amp;fit=crop&amp;q=80&amp;w=1600</image:loc>
+      <image:title>omsconsults - Engineering Excellence for Sustainable Solutions</image:title>
+      <image:caption>Engineering design, hydropower, solar PV systems, construction supervision, and consulting services in Kathmandu, Nepal.</image:caption>
+    </image:image>
+  </url>
+
+  <!-- Projects Showcase Section -->
+  <url>
+    <loc>https://omsconsults.com/#projects</loc>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Services Section -->
+  <url>
+    <loc>https://omsconsults.com/#services</loc>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- About Us Section -->
+  <url>
+    <loc>https://omsconsults.com/#about</loc>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Team & Leadership Section -->
+  <url>
+    <loc>https://omsconsults.com/#team</loc>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- FAQs Section -->
+  <url>
+    <loc>https://omsconsults.com/#faqs</loc>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Contact & Quotation Section -->
+  <url>
+    <loc>https://omsconsults.com/#contact</loc>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Individual Project 1: Upper Mai Hydropower -->
+  <url>
+    <loc>https://omsconsults.com/?project=proj-1</loc>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?auto=format&amp;fit=crop&amp;q=80&amp;w=1200</image:loc>
+      <image:title>Upper Mai Hydropower Project (12 MW) - omsconsults</image:title>
+      <image:caption>Complete engineering design for a 12 MW hydropower project located in Ilam, Nepal.</image:caption>
+    </image:image>
+  </url>
+
+  <!-- Individual Project 2: Super Mai-A Hydropower -->
+  <url>
+    <loc>https://omsconsults.com/?project=proj-2</loc>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?auto=format&amp;fit=crop&amp;q=80&amp;w=1200</image:loc>
+      <image:title>Super Mai-A Hydropower Project (9.99 MW) - omsconsults</image:title>
+      <image:caption>Hydraulic and structural engineering design for a 9.99 MW hydropower project in Ilam, Nepal.</image:caption>
+    </image:image>
+  </url>
+
+  <!-- Individual Project 3: Pikhuwa Super Mai Hydropower -->
+  <url>
+    <loc>https://omsconsults.com/?project=proj-3</loc>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&amp;fit=crop&amp;q=80&amp;w=1200</image:loc>
+      <image:title>Pikhuwa Super Mai Hydropower (7.8 MW) - omsconsults</image:title>
+      <image:caption>Advanced hydro-mechanical design solutions for a 7.8 MW hydropower project in Bhojpur, Nepal.</image:caption>
+    </image:image>
+  </url>
+
+  <!-- Individual Project 4: Tallo Khare Khola Hydropower -->
+  <url>
+    <loc>https://omsconsults.com/?project=proj-4</loc>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1466611653911-95081537e5b7?auto=format&amp;fit=crop&amp;q=80&amp;w=1200</image:loc>
+      <image:title>Tallo Khare Khola Hydropower (11 MW) - omsconsults</image:title>
+      <image:caption>End-to-end engineering design for an 11 MW run-of-the-river hydropower project in Dolakha, Nepal.</image:caption>
+    </image:image>
+  </url>
+
+  <!-- Individual Project 5: Singhati Hydroelectric Project -->
+  <url>
+    <loc>https://omsconsults.com/?project=proj-5</loc>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&amp;fit=crop&amp;q=80&amp;w=1200</image:loc>
+      <image:title>Singhati Hydroelectric Project (25 MW) - omsconsults</image:title>
+      <image:caption>Comprehensive design and verification of hydro-mechanical components in Dolakha, Nepal.</image:caption>
+    </image:image>
+  </url>
+
+  <!-- Individual Project 6: Solar PV System for 130 Schools -->
+  <url>
+    <loc>https://omsconsults.com/?project=proj-6</loc>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1508873696983-2df5293cb32f?auto=format&amp;fit=crop&amp;q=80&amp;w=1200</image:loc>
+      <image:title>Solar PV System for 130 Schools (920.4 kWp) - omsconsults</image:title>
+      <image:caption>Design and construction supervision of rooftop &amp; ground-mounted solar PV systems funded by ADB.</image:caption>
+    </image:image>
+  </url>
+
+  <!-- Individual Project 7: Upper Modi A Hydro Electric Project -->
+  <url>
+    <loc>https://omsconsults.com/?project=proj-7</loc>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1574684061405-b0402b17a5bc?auto=format&amp;fit=crop&amp;q=80&amp;w=1200</image:loc>
+      <image:title>Upper Modi A Hydro Electric Project (42 MW) - omsconsults</image:title>
+      <image:caption>Design review and construction supervision consulting for a 42 MW hydroelectric development in Kaski, Nepal.</image:caption>
+    </image:image>
+  </url>
+
+  <!-- Individual Project 8: Lodo Khola Small Hydropower Project -->
+  <url>
+    <loc>https://omsconsults.com/?project=proj-8</loc>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&amp;fit=crop&amp;q=80&amp;w=1200</image:loc>
+      <image:title>Lodo Khola Small Hydropower Project (1.6 MW) - omsconsults</image:title>
+      <image:caption>Comprehensive engineering design for a 1.6 MW small hydropower project in Nepal.</image:caption>
+    </image:image>
+  </url>
+
+</urlset>

@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Project } from '../types';
 import { 
   X, 
   CheckCircle2, 
   Layers,
-  ArrowRight
+  ArrowRight,
+  Share2,
+  Check,
+  ExternalLink
 } from 'lucide-react';
 
 interface ProjectModalProps {
@@ -13,7 +16,17 @@ interface ProjectModalProps {
 }
 
 export const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose }) => {
+  const [copied, setCopied] = useState(false);
+
   if (!project) return null;
+
+  const projectUrl = `${window.location.origin}/?project=${encodeURIComponent(project.id)}`;
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(projectUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
@@ -52,17 +65,39 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose }) 
 
         {/* Modal Body */}
         <div className="p-6 sm:p-8 space-y-6">
-          <div>
-            <span className="text-[10px] font-mono font-bold text-sky-700 uppercase tracking-widest block mb-1">
-              TECHNICAL DOSSIER
-            </span>
-            <h2 className="text-2xl font-bold text-slate-900 font-['Cairo',sans-serif] uppercase tracking-tight">
-              {project.title}
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-600 mt-2 leading-relaxed">
-              {project.description}
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+            <div>
+              <span className="text-[10px] font-mono font-bold text-sky-700 uppercase tracking-widest block mb-1">
+                TECHNICAL DOSSIER &bull; ID: {project.id}
+              </span>
+              <h2 className="text-2xl font-bold text-slate-900 font-['Cairo',sans-serif] uppercase tracking-tight">
+                {project.title}
+              </h2>
+            </div>
+            
+            {/* Share / Direct SEO Link Button */}
+            <button
+              onClick={handleCopyLink}
+              title="Copy direct permanent link to this project for sharing & SEO indexing"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono text-[11px] font-bold uppercase tracking-wider rounded-none border border-slate-300 transition-colors self-start shrink-0"
+            >
+              {copied ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="text-emerald-700">Link Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Share2 className="w-3.5 h-3.5 text-slate-600" />
+                  <span>Share URL</span>
+                </>
+              )}
+            </button>
           </div>
+
+          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+            {project.description}
+          </p>
 
           {/* Project Details Specs */}
           {project.details && (
@@ -100,21 +135,27 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose }) 
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
-            <button
-              onClick={onClose}
-              className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider rounded-none transition-colors"
-            >
-              Close
-            </button>
-            <a
-              href="#contact"
-              onClick={onClose}
-              className="px-6 py-2.5 bg-sky-700 hover:bg-sky-800 text-white font-bold text-xs uppercase tracking-widest rounded-none shadow-sm transition-colors inline-flex items-center gap-2"
-            >
-              Consult On Project
-              <ArrowRight className="w-4 h-4" />
-            </a>
+          <div className="flex items-center justify-between gap-3 pt-4 border-t border-slate-200">
+            <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-mono text-slate-400 truncate max-w-[280px]">
+              <ExternalLink className="w-3 h-3 shrink-0 text-sky-700" />
+              <span className="truncate">?project={project.id}</span>
+            </div>
+            <div className="flex items-center gap-3 ml-auto">
+              <button
+                onClick={onClose}
+                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider rounded-none transition-colors"
+              >
+                Close
+              </button>
+              <a
+                href="#contact"
+                onClick={onClose}
+                className="px-6 py-2.5 bg-sky-700 hover:bg-sky-800 text-white font-bold text-xs uppercase tracking-widest rounded-none shadow-sm transition-colors inline-flex items-center gap-2"
+              >
+                Consult On Project
+                <ArrowRight className="w-4 h-4" />
+              </a>
+            </div>
           </div>
         </div>
       </div>

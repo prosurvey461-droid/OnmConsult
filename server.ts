@@ -405,6 +405,136 @@ async function startServer() {
     res.json({ success: true, data: defaultSiteData, message: "Restored all content to default engineering portfolio template." });
   });
 
+  // Dynamic SEO Robots.txt
+  app.get("/robots.txt", (req, res) => {
+    const protocol = req.headers["x-forwarded-proto"] || req.protocol || "https";
+    const host = req.headers["x-forwarded-host"] || req.headers.host || "omsconsults.com";
+    const baseUrl = `${protocol}://${host}`;
+
+    const robotsContent = `# robots.txt for omsconsults
+User-agent: *
+Allow: /
+Allow: /#projects
+Allow: /#services
+Allow: /#about
+Allow: /#team
+Allow: /#faqs
+Allow: /#contact
+Allow: /?project=*
+Allow: /sitemap.xml
+
+# Protect internal administration and private API endpoints
+Disallow: /admin
+Disallow: /api/
+Disallow: /#admin
+
+Host: ${baseUrl}
+Sitemap: ${baseUrl}/sitemap.xml
+`;
+    res.type("text/plain").send(robotsContent);
+  });
+
+  // Dynamic SEO Sitemap with Projects & Google Image Schema
+  app.get("/sitemap.xml", (req, res) => {
+    const protocol = req.headers["x-forwarded-proto"] || req.protocol || "https";
+    const host = req.headers["x-forwarded-host"] || req.headers.host || "omsconsults.com";
+    const baseUrl = `${protocol}://${host}`;
+    const today = new Date().toISOString().slice(0, 10);
+
+    const site = loadSiteData();
+    const projects = site.projects || [];
+
+    const escapeXml = (unsafe: string) => {
+      if (!unsafe) return "";
+      return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&apos;");
+    };
+
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+
+  <!-- Core Pages & Sections -->
+  <url>
+    <loc>${baseUrl}/</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>${escapeXml(site.heroSlides?.[0]?.image || "https://images.unsplash.com/photo-1497435334941-8c899ee9e8e9?auto=format&fit=crop&q=80&w=1600")}</image:loc>
+      <image:title>${escapeXml(site.settings?.companyName || "omsconsults")} - Engineering Excellence</image:title>
+      <image:caption>${escapeXml(site.settings?.tagline || "Engineering design and construction supervision in Kathmandu, Nepal")}</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>${baseUrl}/#projects</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/#services</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/#about</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/#team</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/#faqs</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/#contact</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+`;
+
+    // Dynamic Project Entries with Google Image Sitemaps
+    projects.forEach((proj) => {
+      const projUrl = `${baseUrl}/?project=${encodeURIComponent(proj.id)}`;
+      const projImg = proj.image ? `
+    <image:image>
+      <image:loc>${escapeXml(proj.image)}</image:loc>
+      <image:title>${escapeXml(proj.title)} - ${escapeXml(site.settings?.companyName || "omsconsults")}</image:title>
+      <image:caption>${escapeXml(proj.description || proj.details || proj.title)}</image:caption>
+    </image:image>` : '';
+
+      xml += `  <url>
+    <loc>${projUrl}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>${proj.featured ? "0.9" : "0.8"}</priority>${projImg}
+  </url>
+`;
+    });
+
+    xml += `</urlset>`;
+
+    res.set("Content-Type", "application/xml; charset=utf-8");
+    res.set("Cache-Control", "public, max-age=3600");
+    res.send(xml);
+  });
+
   // Serve static dist in production or whenever dist directory exists
   const distPath = path.join(process.cwd(), "dist");
   const hasDist = fs.existsSync(path.join(distPath, "index.html"));
