@@ -27,7 +27,8 @@ import {
   MessageCircle,
   ExternalLink,
   Phone,
-  Code
+  Code,
+  Upload
 } from 'lucide-react';
 
 export const AdminControlDrawer: React.FC = () => {
@@ -219,14 +220,34 @@ export const AdminControlDrawer: React.FC = () => {
     }
   };
 
-  const handleExportJSON = () => {
+  const handleExportJSON = (filename = 'site-data.json') => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(siteData, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `omsconsults-backup-${new Date().toISOString().slice(0,10)}.json`);
+    downloadAnchor.setAttribute("download", filename);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
+  };
+
+  const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const content = event.target?.result as string;
+        const parsed = JSON.parse(content);
+        if (!parsed || !parsed.settings) {
+          throw new Error("Invalid file format: Missing settings object.");
+        }
+        await updateAllData(parsed);
+        alert("Site data successfully imported!");
+      } catch (err: any) {
+        alert(`Failed to import JSON: ${err.message}`);
+      }
+    };
+    reader.readAsText(file);
   };
 
   return (
@@ -1535,29 +1556,68 @@ export const AdminControlDrawer: React.FC = () => {
           {/* TAB 11: BACKUP & RESET */}
           {activeTab === 'backup' && (
             <div className="space-y-6">
+              {/* Netlify & Live Cloud Database Information */}
+              <div className="bg-sky-950/60 p-5 rounded-none border border-sky-600/70 space-y-2.5">
+                <h4 className="text-sm font-bold text-sky-300 uppercase tracking-wider flex items-center gap-2 font-mono">
+                  <ExternalLink className="w-4 h-4 text-sky-400" />
+                  Live Cloud Database Connected (Netlify Ready)
+                </h4>
+                <p className="text-slate-300 text-xs leading-relaxed">
+                  Your website is now connected to <strong>Cloud Firestore</strong>. When deployed on <strong>Netlify</strong>, custom domains, or local servers, all edits made here (projects, team members, contact inquiries, images, and settings) <strong>save and sync in real time across the entire world</strong> without needing to rebuild or push code!
+                </p>
+                <div className="bg-slate-950 p-3 rounded-none border border-sky-800/40 text-xs font-mono text-emerald-300 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Real-Time Cloud Persistence: Active & Synced globally</span>
+                </div>
+              </div>
+
+              {/* Export JSON Backup */}
               <div className="bg-slate-800 p-6 rounded-none border border-slate-700 space-y-3">
                 <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2 font-mono">
                   <Download className="w-4 h-4 text-sky-400" />
-                  Export JSON Backup
+                  Export / Download JSON
                 </h4>
                 <p className="text-slate-400 text-xs">
-                  Download a full snapshot of all current site contents, projects, team members, and settings.
+                  Download a snapshot of the current site dataset (projects, team, services, settings) for backup or Git repo synchronization.
                 </p>
                 <button
-                  onClick={handleExportJSON}
-                  className="px-5 py-2.5 bg-sky-700 hover:bg-sky-800 text-white font-bold text-xs uppercase tracking-wider rounded-none transition-colors"
+                  onClick={() => handleExportJSON('site-data.json')}
+                  className="px-5 py-2.5 bg-sky-700 hover:bg-sky-800 text-white font-bold text-xs uppercase tracking-wider rounded-none transition-colors flex items-center gap-2 cursor-pointer"
                 >
-                  Download Site Data JSON
+                  <Download className="w-4 h-4" />
+                  Download site-data.json
                 </button>
               </div>
 
+              {/* Import JSON */}
+              <div className="bg-slate-800 p-6 rounded-none border border-slate-700 space-y-3">
+                <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2 font-mono">
+                  <Upload className="w-4 h-4 text-emerald-400" />
+                  Import JSON File
+                </h4>
+                <p className="text-slate-400 text-xs">
+                  Upload a previously saved <code className="text-sky-300 font-mono">site-data.json</code> file to restore or apply changes in bulk.
+                </p>
+                <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs uppercase tracking-wider rounded-none transition-colors cursor-pointer">
+                  <Upload className="w-4 h-4" />
+                  Select & Upload JSON File
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={handleImportJSON}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              {/* Reset to defaults */}
               <div className="bg-slate-800 p-6 rounded-none border border-rose-800/60 space-y-3">
                 <h4 className="text-sm font-bold text-rose-300 uppercase tracking-wider flex items-center gap-2 font-mono">
                   <RotateCcw className="w-4 h-4 text-rose-400" />
                   Restore Template Defaults
                 </h4>
                 <p className="text-slate-300 text-xs">
-                  Reset the website to the default Survey Pro template dataset.
+                  Reset the website to the default engineering company template dataset.
                 </p>
                 <button
                   onClick={async () => {
@@ -1566,7 +1626,7 @@ export const AdminControlDrawer: React.FC = () => {
                       alert("Restored defaults!");
                     }
                   }}
-                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs uppercase tracking-wider rounded-none transition-colors"
+                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs uppercase tracking-wider rounded-none transition-colors cursor-pointer"
                 >
                   Reset to Original Template
                 </button>
